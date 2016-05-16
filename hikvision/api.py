@@ -162,6 +162,50 @@ class CreateDevice(object):
                 return
         return
 
+    def run_method(self, method, element_to_query=None):
+        """Get current method"""
+        url = '%s/%s' % (self._base, method)
+
+        _LOGGING.info('url: %s', url)
+
+        response = requests.get(
+            url, auth=HTTPBasicAuth(self._username, self._password))
+
+        _LOGGING.debug('response: %s', response)
+        _LOGGING.debug("status_code %s", response.status_code)
+
+        if response.status_code != 200:
+            log_response_errors(response)
+            return None
+
+        if element_to_query is None:
+            return response.text
+        else:
+            try:
+                tree = ElementTree.fromstring(response.text)
+
+                element_to_query = './/{%s}%s' % (
+                    self._xml_namespace, element_to_query)
+                result = tree.findall(element_to_query)
+                if len(result) > 0:
+                    _LOGGING.debug('element_to_query: %s result: %s',
+                                   element_to_query, result[0])
+
+                    return result[0].text.strip()
+                else:
+                    _LOGGING.error(
+                        'There was a problem finding element: %s',
+                        element_to_query)
+                    _LOGGING.error('Entire response: %s', response.text)
+
+            except AttributeError as attib_err:
+                _LOGGING.error('Entire response: %s', response.text)
+                _LOGGING.error(
+                    'There was a problem finding element:'
+                    ' %s AttributeError: %s', element_to_query, attib_err)
+                return
+        return
+        
     def is_motion_detection_enabled(self):
         """ Get current state of Motion Detection """
 
