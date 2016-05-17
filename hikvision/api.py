@@ -90,7 +90,7 @@ class CreateDevice(object):
         self.motion_url = '%s/MotionDetection/1' % self._base
         _LOGGING.info('motion_url: %s', self.motion_url)
 
-        self._xml_namespace = "http://www.hikvision.com/ver10/XMLSchema"
+        self._xml_namespace = "http://www.hikvision.com/ver20/XMLSchema"
         # Required to parse and change xml with the host camera
         _LOGGING.info(
             'ElementTree.register_namespace: %s', self._xml_namespace)
@@ -162,12 +162,10 @@ class CreateDevice(object):
                 return
         return
 
-    def run_method(self, method, element_to_query=None):
+    def get(self, method, element_to_query=None):
         """Get current method"""
-        url = '%s/%s' % (self._base, method)
-
+        url = '%s/ISAPI/%s' % (self._base, method.strip())
         _LOGGING.info('url: %s', url)
-
         response = requests.get(
             url, auth=HTTPBasicAuth(self._username, self._password))
 
@@ -183,7 +181,8 @@ class CreateDevice(object):
         else:
             try:
                 tree = ElementTree.fromstring(response.text)
-
+                if self._xml_namespace not in str(tree):
+                    self._xml_namespace = 'http://www.hikvision.com/ver10/XMLSchema'
                 element_to_query = './/{%s}%s' % (
                     self._xml_namespace, element_to_query)
                 result = tree.findall(element_to_query)
