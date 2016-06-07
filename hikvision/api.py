@@ -19,7 +19,7 @@ from requests.exceptions import ConnectionError as ReConnError
 from requests.auth import HTTPBasicAuth
 
 _LOGGING = logging.getLogger(__name__)
-
+logging.disable(logging.CRITICAL)
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-instance-attributes
 
@@ -41,6 +41,9 @@ def build_url_base(host, port, is_https):
 
     return base
 
+def strip_ns(xml_string):
+    r = re.compile('xmlns="(.*?)">')
+    return re.search(r,xml_string).group(1)
 
 def log_response_errors(response):
     """
@@ -139,7 +142,6 @@ class CreateDevice(object):
         else:
             try:
                 tree = ElementTree.fromstring(response.text)
-
                 element_to_query = './/{%s}%s' % (
                     self._xml_namespace, element_to_query)
                 result = tree.findall(element_to_query)
@@ -181,8 +183,20 @@ class CreateDevice(object):
         else:
             try:
                 tree = ElementTree.fromstring(response.text)
-                if self._xml_namespace not in str(tree):
-                    self._xml_namespace = 'http://www.hikvision.com/ver10/XMLSchema'
+                self._xml_namespace = strip_ns(response.text)
+                if '/' in element_to_query:
+                    elements = element_to_query.split('/')
+                    element_to_query = './/{%s}%s' % (
+                        self._xml_namespace, elements[0])
+
+                    result = tree.findall(element_to_query)[0]
+                    for element in result.getchildren():
+                        if '{{{0}}}{1}'.format(self._xml_namespace,elements[1]) == element.tag:
+                            _LOGGING.debug('element_to_query: %s result: %s',
+                                           element_to_query, element.text)
+
+                            return [response.text, element.text.strip()]
+
                 element_to_query = './/{%s}%s' % (
                     self._xml_namespace, element_to_query)
                 result = tree.findall(element_to_query)
@@ -190,7 +204,7 @@ class CreateDevice(object):
                     _LOGGING.debug('element_to_query: %s result: %s',
                                    element_to_query, result[0])
 
-                    return result[0].text.strip()
+                    return [response.text, result[0].text.strip()]
                 else:
                     _LOGGING.error(
                         'There was a problem finding element: %s',
