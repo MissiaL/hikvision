@@ -218,7 +218,19 @@ class CreateDevice(object):
                     ' %s AttributeError: %s', element_to_query, attib_err)
                 return
         return
-        
+    def put(self, method):
+        url = '%s/ISAPI/%s' % (self._base, method.strip())
+        _LOGGING.info('url: %s', url)
+        response = requests.put(
+            url, auth=HTTPBasicAuth(self._username, self._password))
+
+        if response.status_code != 200:
+            _LOGGING.error(
+                "There was an error connecting to %s", self.motion_url)
+            _LOGGING.error("status_code %s", response.status_code)
+            return
+        return response.status_code
+
     def is_motion_detection_enabled(self):
         """ Get current state of Motion Detection """
 
